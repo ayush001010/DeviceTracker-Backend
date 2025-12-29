@@ -1,4 +1,4 @@
-# Device Tracker Web Dashboard
+# Mee Web Dashboard
 
 A responsive web dashboard to visualize device location tracking on a map.
 

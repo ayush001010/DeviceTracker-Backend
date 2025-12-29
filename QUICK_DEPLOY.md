@@ -1,4 +1,4 @@
-# Quick Deployment Guide - DeviceTracker
+# Quick Deployment Guide - Mee
 
 This guide provides step-by-step instructions to deploy the server, web dashboard, and mobile app.
 
@@ -59,7 +59,7 @@ This guide provides step-by-step instructions to deploy the server, web dashboar
 2. **Set environment variables** (PowerShell):
    ```powershell
    $env:PORT=4000
-   $env:MONGO_URI="mongodb://localhost:27017/devicetracker"
+   $env:MONGO_URI="mongodb://localhost:27017/mee"
    $env:JWT_SECRET="your-secret-key-here"
    $env:NODE_ENV="production"
    ```
@@ -76,7 +76,7 @@ This guide provides step-by-step instructions to deploy the server, web dashboar
    **For production**, use PM2:
    ```cmd
    npm install -g pm2
-   pm2 start server.js --name devicetracker-backend
+   pm2 start server.js --name mee-backend
    pm2 save
    pm2 startup
    ```
@@ -110,7 +110,7 @@ The web dashboard is automatically deployed when you run `docker-compose up`.
 
 1. **Copy web files** to your web server directory:
    ```cmd
-   xcopy /E /I web C:\inetpub\wwwroot\devicetracker
+   xcopy /E /I web C:\inetpub\wwwroot\mee
    ```
 
 2. **Update API URL** in `web/app.js` to point to your backend
@@ -190,7 +190,7 @@ APK location: `android\app\build\outputs\apk\debug\app-debug.apk`
 
 3. **Open in Xcode**:
    ```cmd
-   start ios\DeviceTracker.xcworkspace
+   start ios\Mee.xcworkspace
    ```
 
 4. **Configure signing**:

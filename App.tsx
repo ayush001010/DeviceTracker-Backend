@@ -239,7 +239,7 @@ export default function App() {
         {
           title: 'Background Location Permission',
           message:
-            'DeviceTracker needs access to your location even when the app is closed to track your device in the background. Please select "Allow all the time".',
+            'Mee needs access to your location even when the app is closed to track your device in the background. Please select "Allow all the time".',
           buttonNeutral: 'Ask Me Later',
           buttonNegative: 'Cancel',
           buttonPositive: 'Allow',
@@ -253,7 +253,7 @@ export default function App() {
       if (result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
         Alert.alert(
           'Permission Required',
-          'Background location permission is required. Please enable it in Settings → Apps → DeviceTracker → Permissions → Location → Allow all the time',
+          'Background location permission is required. Please enable it in Settings → Apps → Mee → Permissions → Location → Allow all the time',
           [
             {text: 'Cancel', style: 'cancel'},
             {
@@ -276,7 +276,7 @@ export default function App() {
       // If request fails, direct user to settings
       Alert.alert(
         'Permission Required',
-        'Please enable background location in Settings → Apps → DeviceTracker → Permissions → Location → Allow all the time',
+        'Please enable background location in Settings → Apps → Mee → Permissions → Location → Allow all the time',
         [
           {text: 'Cancel', style: 'cancel'},
           {
@@ -738,7 +738,7 @@ export default function App() {
           <>
             <View style={styles.header}>
               <View style={styles.headerTop}>
-                <Text style={styles.title}>Device Tracker</Text>
+                <Text style={styles.title}>Mee</Text>
                 <View
                   style={[
                     styles.statusBadge,

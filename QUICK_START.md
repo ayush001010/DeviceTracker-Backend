@@ -1,4 +1,4 @@
-# Quick Start - DeviceTracker Deployment
+# Quick Start - Mee Deployment
 
 ## 🚀 Fastest Way to Deploy (Docker)
 
@@ -9,7 +9,7 @@
 # Set JWT_SECRET (generate with: openssl rand -base64 32)
 echo "JWT_SECRET=$(openssl rand -base64 32)" > .env
 echo "PORT=4000" >> .env
-echo "MONGO_URI=mongodb://mongodb:27017/devicetracker" >> .env
+echo "MONGO_URI=mongodb://mongodb:27017/mee" >> .env
 echo "NODE_ENV=production" >> .env
 ```
 
@@ -54,7 +54,7 @@ docker-compose logs -f
 ./scripts/build-ios.sh
 
 # Then open in Xcode
-open ios/DeviceTracker.xcworkspace
+open ios/Mee.xcworkspace
 ```
 
 **Important**: Update `config.ts` with your production server URL before building!
@@ -71,7 +71,7 @@ npm install --production
 
 # Set environment variables
 export PORT=4000
-export MONGO_URI=mongodb://localhost:27017/devicetracker
+export MONGO_URI=mongodb://localhost:27017/mee
 export JWT_SECRET=your-secret-key-here
 export NODE_ENV=production
 

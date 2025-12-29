@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Quick deployment script for DeviceTracker
+# Quick deployment script for Mee
 # Usage: ./scripts/deploy.sh [docker|manual]
 
 set -e
@@ -8,7 +8,7 @@ set -e
 DEPLOY_METHOD=${1:-docker}
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-echo "🚀 DeviceTracker Deployment Script"
+echo "🚀 Mee Deployment Script"
 echo "=================================="
 echo ""
 
@@ -62,7 +62,7 @@ elif [ "$DEPLOY_METHOD" = "manual" ]; then
     echo ""
     echo "2. Set environment variables:"
     echo "   export PORT=4000"
-    echo "   export MONGO_URI=mongodb://localhost:27017/devicetracker"
+    echo "   export MONGO_URI=mongodb://localhost:27017/mee"
     echo "   export JWT_SECRET=\$(openssl rand -base64 32)"
     echo "   export NODE_ENV=production"
     echo ""
@@ -71,7 +71,7 @@ elif [ "$DEPLOY_METHOD" = "manual" ]; then
     echo "4. Start the server:"
     echo "   npm run server"
     echo "   # Or with PM2:"
-    echo "   pm2 start server.js --name devicetracker-backend"
+    echo "   pm2 start server.js --name mee-backend"
     echo ""
     echo "5. Deploy web dashboard to your static host"
     echo ""

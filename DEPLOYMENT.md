@@ -1,6 +1,6 @@
-# DeviceTracker Deployment Guide
+# Mee Deployment Guide
 
-This guide covers deploying the DeviceTracker application (Backend, Web Dashboard, and Mobile Apps).
+This guide covers deploying the Mee application (Backend, Web Dashboard, and Mobile Apps).
 
 ## Table of Contents
 
@@ -58,7 +58,7 @@ This guide covers deploying the DeviceTracker application (Backend, Web Dashboar
 2. **Set environment variables:**
    ```bash
    export PORT=4000
-   export MONGO_URI=mongodb://localhost:27017/devicetracker
+   export MONGO_URI=mongodb://localhost:27017/mee
    export JWT_SECRET=your-secret-key-here
    export NODE_ENV=production
    ```
@@ -77,7 +77,7 @@ This guide covers deploying the DeviceTracker application (Backend, Web Dashboar
    npm run server
    # Or use PM2 for production:
    npm install -g pm2
-   pm2 start server.js --name devicetracker-backend
+   pm2 start server.js --name mee-backend
    pm2 save
    pm2 startup
    ```
@@ -93,7 +93,7 @@ This guide covers deploying the DeviceTracker application (Backend, Web Dashboar
 2. **Deploy:**
    ```bash
    # Example for Heroku
-   heroku create devicetracker-backend
+   heroku create mee-backend
    heroku config:set JWT_SECRET=your-secret-key
    heroku config:set MONGO_URI=your-mongodb-uri
    git push heroku main
@@ -124,7 +124,7 @@ The web dashboard is automatically deployed when using `docker-compose up`. It w
 
 1. **Copy web files:**
    ```bash
-   sudo cp -r web/* /var/www/devicetracker/
+   sudo cp -r web/* /var/www/mee/
    ```
 
 2. **Configure Nginx:**
@@ -132,7 +132,7 @@ The web dashboard is automatically deployed when using `docker-compose up`. It w
    server {
        listen 80;
        server_name your-domain.com;
-       root /var/www/devicetracker;
+       root /var/www/mee;
        index index.html;
        
        location / {
@@ -227,7 +227,7 @@ cd android
 
 3. **Open in Xcode:**
    ```bash
-   open ios/DeviceTracker.xcworkspace
+   open ios/Mee.xcworkspace
    ```
 
 4. **Configure signing:**

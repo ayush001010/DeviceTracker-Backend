@@ -1,5 +1,5 @@
 @echo off
-REM Quick deployment script for DeviceTracker (Windows)
+REM Quick deployment script for Mee (Windows)
 REM Usage: scripts\deploy.bat [docker|manual]
 
 setlocal enabledelayedexpansion
@@ -7,7 +7,7 @@ setlocal enabledelayedexpansion
 set DEPLOY_METHOD=%1
 if "%DEPLOY_METHOD%"=="" set DEPLOY_METHOD=docker
 
-echo 🚀 DeviceTracker Deployment Script
+echo 🚀 Mee Deployment Script
 echo ==================================
 echo.
 
@@ -44,7 +44,7 @@ if "%DEPLOY_METHOD%"=="docker" (
     echo.
     echo 2. Set environment variables (in PowerShell):
     echo    $env:PORT=4000
-    echo    $env:MONGO_URI="mongodb://localhost:27017/devicetracker"
+    echo    $env:MONGO_URI="mongodb://localhost:27017/mee"
     echo    $env:JWT_SECRET="your-secret-here"
     echo    $env:NODE_ENV="production"
     echo.
