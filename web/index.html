@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Device Tracker Dashboard</title>
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- Leaflet Fullscreen -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-fullscreen/dist/leaflet.fullscreen.css" />
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="dashboard">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-top">
+        <div class="header-left">
+          <h1>📍 Device Tracker</h1>
+          <div class="refresh-indicator" id="refreshIndicator" style="display: none;">
+            <svg class="refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.48L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            <span class="refresh-text" id="refreshText"></span>
+          </div>
+        </div>
+        <div class="status-indicator" id="statusIndicator">
+          <span class="status-dot" id="statusDot"></span>
+          <span class="status-text" id="statusText">Loading...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- UUID Input Form -->
+    <div class="device-input-container" id="uuidContainer">
+      <div class="device-input-card">
+        <h2>Enter Device UUID</h2>
+        <p class="device-input-hint">Enter your device UUID to track location</p>
+        <div class="input-group">
+          <input 
+            type="text" 
+            id="uuidInput" 
+            class="device-input" 
+            placeholder="Device UUID"
+            autocomplete="off"
+          />
+          <button id="trackButton" class="track-button">Track Device</button>
+        </div>
+        <div id="uuidError" class="error-text" style="display: none; margin-top: 10px; color: #EF4444;"></div>
+      </div>
+    </div>
+
+    <!-- Main Content (shown when deviceId is set) -->
+    <div class="main-content" id="mainContent" style="display: none;">
+      <!-- Enhanced Info Panel -->
+      <div class="info-panel" id="infoPanel">
+        <div class="info-panel-wrapper">
+          <div class="info-panel-content" id="infoPanelContent">
+        <div class="info-card">
+          <div class="info-header">
+            <span class="info-label">Device ID</span>
+            <button class="copy-btn" id="copyDeviceIdBtn" title="Copy Device ID">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+          </div>
+          <span class="info-value" id="deviceId">-</span>
+        </div>
+        
+        <div class="info-card">
+          <span class="info-label">Last Updated</span>
+          <span class="info-value" id="lastUpdated">-</span>
+        </div>
+        
+        <div class="info-card">
+          <span class="info-label">Accuracy</span>
+          <span class="info-value" id="accuracy">-</span>
+        </div>
+        
+        <div class="info-card">
+          <span class="info-label">Coordinates</span>
+          <span class="info-value" id="coordinates">-</span>
+        </div>
+        
+        <div class="info-card">
+          <span class="info-label">Total Points</span>
+          <span class="info-value" id="totalPoints">0</span>
+        </div>
+        </div>
+
+        <!-- Security Status Panel (Right Side) -->
+        <div class="security-status-panel" id="securityStatusPanel">
+          <div class="security-status-content">
+            <div class="security-status-left">
+              <svg class="security-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              </svg>
+              <div class="security-status-info">
+                <span class="security-label">Security Status</span>
+                <div class="security-badge" id="securityBadge">
+                  <span class="security-badge-dot" id="securityBadgeDot"></span>
+                  <span class="security-badge-text" id="securityBadgeText">Checking...</span>
+                </div>
+              </div>
+            </div>
+            <div class="security-reason" id="securityReason" style="display: none;">
+              <span class="security-reason-text" id="securityReasonText"></span>
+            </div>
+          </div>
+        </div>
+        </div>
+
+      <!-- Map Container with Controls -->
+      <div class="map-container">
+        <div id="map"></div>
+        
+        <!-- Map Controls -->
+        <div class="map-controls">
+          <button class="map-control-btn" id="fitBoundsBtn" title="Fit to Route">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 3l18 18M21 3L3 21M12 2v20M2 12h20"></path>
+            </svg>
+          </button>
+          <button class="map-control-btn" id="clearPathBtn" title="Clear Path">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error Message -->
+    <div class="error-message" id="errorMessage" style="display: none;">
+      <p id="errorText"></p>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+      <div class="toast-content">
+        <svg class="toast-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+        <span class="toast-message" id="toastMessage">Device ID copied!</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- Leaflet Plugins -->
+  <script src="https://unpkg.com/leaflet-fullscreen/dist/Leaflet.fullscreen.min.js"></script>
+  
+  <!-- App JS -->
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,6 +1,24 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    
+    <!-- Background location permission (Android 10+) -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    
+    <!-- Foreground service permission (Android 9+) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    
+    <!-- Wake lock to keep service running when screen is off -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    
+    <!-- Notification permission (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    
+    <!-- Boot completed permission to restart service after reboot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
       android:name=".MainApplication"
@@ -23,5 +41,25 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+      
+      <!-- Location Tracking Foreground Service -->
+      <service
+        android:name=".LocationTrackingService"
+        android:enabled="true"
+        android:exported="false"
+        android:foregroundServiceType="location" />
+      
+      <!-- Boot receiver to restart service after device reboot -->
+      <receiver
+        android:name=".BootReceiver"
+        android:enabled="true"
+        android:exported="true"
+        android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
+        <intent-filter>
+          <action android:name="android.intent.action.BOOT_COMPLETED" />
+          <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+          <category android:name="android.intent.category.DEFAULT" />
+        </intent-filter>
+      </receiver>
     </application>
 </manifest>
