@@ -32,6 +32,16 @@ const getBackendURL = () => {
   // - Same domain, different port: `${protocol}//${hostname}:4000/api`
   // - Subdomain: `${protocol}//api.${hostname}/api`
   // - Different domain: `${protocol}//your-backend-domain.com/api`
+  
+  // Production backend URL (Render.com)
+  // Update this to your actual backend URL when deploying
+  const PRODUCTION_BACKEND_URL = 'https://devicetracker-backend.onrender.com/api';
+  
+  // Use production URL if not on localhost/local network
+  if (!hostname.includes('localhost') && !hostname.match(/^192\.168\.|^10\.|^172\./)) {
+    return PRODUCTION_BACKEND_URL;
+  }
+  
   return `${protocol}//${hostname}:4000/api`;
 };
 

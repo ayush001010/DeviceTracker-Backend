@@ -2,9 +2,9 @@
 
 // Server configuration
 // Change these values to match your setup
-export const SERVER_HOST = '192.168.1.11'; // Your server IP address
-export const SERVER_PORT = '4000'; // Your server port
-export const SERVER_URL = `http://${SERVER_HOST}:${SERVER_PORT}`;
+export const SERVER_HOST = 'devicetracker-backend.onrender.com'; // Your production server
+export const SERVER_PORT = '443'; // HTTPS port
+export const SERVER_URL = `https://${SERVER_HOST}`;
 
 // GPS tracking thresholds (configurable)
 export const GPS_CONFIG = {

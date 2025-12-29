@@ -1,20 +1,24 @@
 import {Router} from 'express';
 import Location from '../models/Location.js';
 import {PAGINATION_CONFIG, DETECTION_CONFIG} from '../config/apiConfig.js';
-import {authenticate, optionalAuthenticate} from '../middleware/auth.js';
 
 const router = Router();
 
 /**
  * POST /api/location
- * Submit location update (protected - requires JWT)
- * deviceId is derived from authenticated user, not from request body
+ * Submit location update (no authentication required)
  */
-router.post('/location', authenticate, async (req, res) => {
+router.post('/location', async (req, res) => {
   try {
-    // Get deviceId from authenticated user (not from request body)
-    const deviceId = req.user.deviceId;
-    const {latitude, longitude, accuracy} = req.body || {};
+    // Get deviceId from request body
+    const {deviceId, latitude, longitude, accuracy} = req.body || {};
+    
+    if (!deviceId) {
+      return res.status(400).json({
+        success: false,
+        message: 'deviceId is required in request body',
+      });
+    }
     
     console.log('📥 Received location update:', {deviceId, latitude, longitude, accuracy});
 
@@ -39,21 +43,17 @@ router.post('/location', authenticate, async (req, res) => {
 
 /**
  * GET /api/location/latest
- * Get latest location for device
- * deviceId can be from authenticated user or query parameter
+ * Get latest location for device (no authentication required)
  */
-router.get('/location/latest', optionalAuthenticate, async (req, res) => {
+router.get('/location/latest', async (req, res) => {
   try {
-    // Get deviceId from authenticated user or query parameter
-    let deviceId = null;
-    if (req.user && req.user.deviceId) {
-      deviceId = req.user.deviceId;
-    } else if (req.query.deviceId) {
-      deviceId = req.query.deviceId;
-    } else {
+    // Get deviceId from query parameter
+    const deviceId = req.query.deviceId;
+    
+    if (!deviceId) {
       return res.status(400).json({
         success: false,
-        message: 'deviceId is required (either authenticated or as query parameter)',
+        message: 'deviceId is required as query parameter',
       });
     }
 
@@ -76,21 +76,17 @@ router.get('/location/latest', optionalAuthenticate, async (req, res) => {
 
 /**
  * GET /api/location/history
- * Get location history for device
- * deviceId can be from authenticated user or query parameter
+ * Get location history for device (no authentication required)
  */
-router.get('/location/history', optionalAuthenticate, async (req, res) => {
+router.get('/location/history', async (req, res) => {
   try {
-    // Get deviceId from authenticated user or query parameter
-    let deviceId = null;
-    if (req.user && req.user.deviceId) {
-      deviceId = req.user.deviceId;
-    } else if (req.query.deviceId) {
-      deviceId = req.query.deviceId;
-    } else {
+    // Get deviceId from query parameter
+    const deviceId = req.query.deviceId;
+    
+    if (!deviceId) {
       return res.status(400).json({
         success: false,
-        message: 'deviceId is required (either authenticated or as query parameter)',
+        message: 'deviceId is required as query parameter',
       });
     }
     
@@ -175,21 +171,17 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
  */
 /**
  * GET /api/device/status
- * Get device status for device
- * deviceId can be from authenticated user or query parameter
+ * Get device status for device (no authentication required)
  */
-router.get('/device/status', optionalAuthenticate, async (req, res) => {
+router.get('/device/status', async (req, res) => {
   try {
-    // Get deviceId from authenticated user or query parameter
-    let deviceId = null;
-    if (req.user && req.user.deviceId) {
-      deviceId = req.user.deviceId;
-    } else if (req.query.deviceId) {
-      deviceId = req.query.deviceId;
-    } else {
+    // Get deviceId from query parameter
+    const deviceId = req.query.deviceId;
+    
+    if (!deviceId) {
       return res.status(400).json({
         success: false,
-        message: 'deviceId is required (either authenticated or as query parameter)',
+        message: 'deviceId is required as query parameter',
       });
     }
     

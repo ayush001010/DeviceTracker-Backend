@@ -1,0 +1,4 @@
+<resources>
+    <!-- Splash / launch background color -->
+    <color name="splash_background">#0F172A</color>
+</resources>

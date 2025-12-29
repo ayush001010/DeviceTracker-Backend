@@ -4,7 +4,6 @@ import morgan from 'morgan';
 
 import connectDB from './config/db.js';
 import locationRoutes from './routes/locationRoutes.js';
-import authRoutes from './routes/authRoutes.js';
 
 dotenv.config();
 
@@ -36,10 +35,7 @@ app.get('/health', (req, res) => {
   res.json({status: 'ok'});
 });
 
-// Auth routes (public - no authentication required)
-app.use('/api/auth', authRoutes);
-
-// Location routes (protected - require authentication)
+// Location routes (no authentication required)
 app.use('/api', locationRoutes);
 
 app.use((req, res) => {
