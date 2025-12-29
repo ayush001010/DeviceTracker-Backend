@@ -1,21 +1,29 @@
 package com.devicetracker
 
 import android.app.*
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Binder
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import java.io.IOException
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.ConcurrentLinkedQueue
 
 class LocationTrackingService : Service(), LocationListener {
     private val binder = LocalBinder()
@@ -25,6 +33,18 @@ class LocationTrackingService : Service(), LocationListener {
     private var serverUrl: String? = null
     private var isTracking = false
     private var lastLocation: Location? = null
+    
+    // Wake lock to keep service running when screen is off
+    private var wakeLock: PowerManager.WakeLock? = null
+    
+    // Network connectivity
+    private var connectivityManager: ConnectivityManager? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var isNetworkAvailable = true
+    
+    // Location queue for offline mode
+    private val locationQueue = ConcurrentLinkedQueue<Location>()
+    private val MAX_QUEUE_SIZE = 100 // Limit queue size
     
     // Health tracking
     private var lastSuccessfulSendTime: Long = 0
@@ -52,8 +72,122 @@ class LocationTrackingService : Service(), LocationListener {
     override fun onCreate() {
         super.onCreate()
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         executor = Executors.newSingleThreadScheduledExecutor()
         createNotificationChannel()
+        setupNetworkMonitoring()
+    }
+    
+    /**
+     * Setup network connectivity monitoring
+     * Automatically detects when internet comes back and sends queued locations
+     */
+    private fun setupNetworkMonitoring() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            networkCallback = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    android.util.Log.d("LocationService", "✅ Network available - internet connected")
+                    isNetworkAvailable = true
+                    // Send queued locations when internet comes back
+                    flushLocationQueue()
+                }
+                
+                override fun onLost(network: Network) {
+                    android.util.Log.w("LocationService", "⚠️ Network lost - internet disconnected")
+                    isNetworkAvailable = false
+                }
+                
+                override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                    val hasInternet = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                                     networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                    if (hasInternet && !isNetworkAvailable) {
+                        android.util.Log.d("LocationService", "✅ Internet connection restored")
+                        isNetworkAvailable = true
+                        flushLocationQueue()
+                    } else if (!hasInternet) {
+                        isNetworkAvailable = false
+                    }
+                }
+            }
+            
+            val networkRequest = NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                .build()
+            
+            connectivityManager?.registerNetworkCallback(networkRequest, networkCallback!!)
+            android.util.Log.d("LocationService", "Network monitoring setup complete")
+        } else {
+            // For older Android versions, use BroadcastReceiver
+            val filter = IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)
+            registerReceiver(networkStateReceiver, filter)
+        }
+        
+        // Check initial network state
+        checkNetworkState()
+    }
+    
+    /**
+     * Check current network state
+     */
+    private fun checkNetworkState() {
+        try {
+            val activeNetwork = connectivityManager?.activeNetwork
+            val capabilities = connectivityManager?.getNetworkCapabilities(activeNetwork)
+            isNetworkAvailable = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true &&
+                                capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+            
+            if (isNetworkAvailable) {
+                android.util.Log.d("LocationService", "Network is available")
+                flushLocationQueue()
+            } else {
+                android.util.Log.w("LocationService", "Network is not available")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LocationService", "Error checking network state: ${e.message}")
+            // Assume network is available if check fails
+            isNetworkAvailable = true
+        }
+    }
+    
+    /**
+     * BroadcastReceiver for network state changes (Android < 7.0)
+     */
+    private val networkStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            checkNetworkState()
+        }
+    }
+    
+    /**
+     * Flush queued locations when internet comes back
+     */
+    private fun flushLocationQueue() {
+        if (!isNetworkAvailable || locationQueue.isEmpty()) return
+        
+        android.util.Log.d("LocationService", "Flushing ${locationQueue.size} queued locations...")
+        executor?.execute {
+            var sentCount = 0
+            while (locationQueue.isNotEmpty() && isNetworkAvailable) {
+                val location = locationQueue.poll()
+                if (location != null) {
+                    try {
+                        sendLocationToServer(location, isQueued = true)
+                        sentCount++
+                        // Small delay between sends to avoid overwhelming server
+                        Thread.sleep(100)
+                    } catch (e: Exception) {
+                        android.util.Log.e("LocationService", "Error sending queued location: ${e.message}")
+                        // Re-queue if send failed and network is still available
+                        if (isNetworkAvailable && locationQueue.size < MAX_QUEUE_SIZE) {
+                            locationQueue.offer(location)
+                        }
+                        break
+                    }
+                }
+            }
+            android.util.Log.d("LocationService", "✅ Sent $sentCount queued locations")
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -78,6 +212,9 @@ class LocationTrackingService : Service(), LocationListener {
                 deviceId = intent.getStringExtra(EXTRA_DEVICE_ID)
                 serverUrl = intent.getStringExtra(EXTRA_SERVER_URL)
                 android.util.Log.d("LocationService", "Starting with deviceId: $deviceId, serverUrl: $serverUrl")
+                // Save state to SharedPreferences BEFORE starting tracking
+                // This ensures service can resume if killed and restarted
+                saveStateToPreferences()
                 startTracking()
             }
             ACTION_STOP -> {
@@ -92,6 +229,25 @@ class LocationTrackingService : Service(), LocationListener {
             }
         }
         return START_STICKY // Restart if killed by system
+    }
+    
+    /**
+     * Save tracking state to SharedPreferences
+     * Called when tracking starts to ensure service can resume if killed
+     */
+    private fun saveStateToPreferences() {
+        try {
+            val prefs = getSharedPreferences("LocationTrackingState", Context.MODE_PRIVATE)
+            prefs.edit().apply {
+                putString("device_id", deviceId)
+                putString("server_url", serverUrl)
+                putBoolean("is_tracking", true)
+                apply()
+            }
+            android.util.Log.d("LocationService", "State saved: deviceId=$deviceId, serverUrl=$serverUrl")
+        } catch (e: Exception) {
+            android.util.Log.e("LocationService", "Failed to save state: ${e.message}")
+        }
     }
     
     /**
@@ -168,6 +324,21 @@ class LocationTrackingService : Service(), LocationListener {
         
         isTracking = true
         android.util.Log.d("LocationService", "Starting location tracking...")
+        
+        // Acquire wake lock to keep service running when screen is off
+        try {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = powerManager.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "Mee::LocationTrackingWakeLock"
+            ).apply {
+                acquire(10 * 60 * 60 * 1000L) // 10 hours timeout (safety limit)
+            }
+            android.util.Log.d("LocationService", "✅ Wake lock acquired")
+        } catch (e: Exception) {
+            android.util.Log.w("LocationService", "⚠️ Could not acquire wake lock: ${e.message}")
+            // Continue even without wake lock
+        }
         
         // Create notification channel first
         createNotificationChannel()
@@ -271,6 +442,19 @@ class LocationTrackingService : Service(), LocationListener {
         isTracking = false
         locationManager?.removeUpdates(this)
         executor?.shutdown()
+        
+        // Release wake lock
+        try {
+            wakeLock?.let {
+                if (it.isHeld) {
+                    it.release()
+                    android.util.Log.d("LocationService", "✅ Wake lock released")
+                }
+            }
+            wakeLock = null
+        } catch (e: Exception) {
+            android.util.Log.w("LocationService", "Error releasing wake lock: ${e.message}")
+        }
     }
 
     override fun onLocationChanged(location: Location) {
@@ -284,8 +468,22 @@ class LocationTrackingService : Service(), LocationListener {
         // Only send if accuracy is good enough (30m threshold)
         if (location.accuracy <= 30f && deviceId != null && serverUrl != null) {
             lastLocation = location
-            sendLocationToServer(location)
-            updateNotification("Tracking location... (${String.format("%.1f", location.accuracy)}m)")
+            
+            // Check network availability
+            if (isNetworkAvailable) {
+                // Network available - send immediately
+                sendLocationToServer(location)
+            } else {
+                // Network unavailable - queue location for later
+                if (locationQueue.size < MAX_QUEUE_SIZE) {
+                    locationQueue.offer(location)
+                    android.util.Log.d("LocationService", "Location queued (network offline). Queue size: ${locationQueue.size}")
+                    updateNotification("Tracking... (Offline - ${locationQueue.size} queued)")
+                } else {
+                    android.util.Log.w("LocationService", "Location queue full, dropping location")
+                    updateNotification("Tracking... (Queue full)")
+                }
+            }
             
             // Periodically ensure notification is visible (every 10th location update)
             notificationCheckCounter++
@@ -296,9 +494,18 @@ class LocationTrackingService : Service(), LocationListener {
         }
     }
 
-    private fun sendLocationToServer(location: Location) {
+    private fun sendLocationToServer(location: Location, isQueued: Boolean = false) {
         executor?.execute {
             try {
+                // Double-check network availability before sending
+                if (!isNetworkAvailable && !isQueued) {
+                    // Network became unavailable, queue instead
+                    if (locationQueue.size < MAX_QUEUE_SIZE) {
+                        locationQueue.offer(location)
+                        android.util.Log.d("LocationService", "Network unavailable, location queued")
+                    }
+                    return@execute
+                }
                 val url = "$serverUrl/api/location"
                 val jsonBody = """
                     {
@@ -318,14 +525,18 @@ class LocationTrackingService : Service(), LocationListener {
                 
                 val responseCode = connection.responseCode
                 if (responseCode in 200..299) {
-                    android.util.Log.d("LocationService", "✅ Location sent successfully")
+                    android.util.Log.d("LocationService", "✅ Location sent successfully${if (isQueued) " (queued)" else ""}")
                     lastSuccessfulSendTime = System.currentTimeMillis()
                     consecutiveFailures = 0
+                    isNetworkAvailable = true // Mark network as available on success
                     saveHealthData("online")
-                    updateNotification("Tracking... (${String.format("%.1f", location.accuracy)}m)")
+                    val queueInfo = if (locationQueue.isNotEmpty()) " (${locationQueue.size} queued)" else ""
+                    updateNotification("Tracking... (${String.format("%.1f", location.accuracy)}m)$queueInfo")
                 } else {
                     consecutiveFailures++
                     android.util.Log.e("LocationService", "❌ Failed to send location: $responseCode (failures: $consecutiveFailures)")
+                    // If send failed, check if network is still available
+                    checkNetworkState()
                     if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
                         saveHealthData("stale")
                         updateNotification("Tracking... (Connection issues)")
@@ -335,12 +546,20 @@ class LocationTrackingService : Service(), LocationListener {
             } catch (e: IOException) {
                 consecutiveFailures++
                 android.util.Log.e("LocationService", "❌ Network error: ${e.message} (failures: $consecutiveFailures)")
+                // Network error - mark as unavailable and queue location
+                isNetworkAvailable = false
+                if (locationQueue.size < MAX_QUEUE_SIZE && !isQueued) {
+                    locationQueue.offer(location)
+                    android.util.Log.d("LocationService", "Location queued due to network error")
+                }
                 if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
                     saveHealthData("stale")
                 }
             } catch (e: Exception) {
                 consecutiveFailures++
                 android.util.Log.e("LocationService", "❌ Error: ${e.message} (failures: $consecutiveFailures)")
+                // Check network state on error
+                checkNetworkState()
                 if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
                     saveHealthData("stale")
                 }
@@ -489,6 +708,35 @@ class LocationTrackingService : Service(), LocationListener {
         android.util.Log.d("LocationService", "Service onDestroy() called")
         stopTracking()
         saveHealthData("offline")
+        
+        // Unregister network callback
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                networkCallback?.let {
+                    connectivityManager?.unregisterNetworkCallback(it)
+                }
+            } else {
+                try {
+                    unregisterReceiver(networkStateReceiver)
+                } catch (e: Exception) {
+                    // Receiver might not be registered
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("LocationService", "Error unregistering network callback: ${e.message}")
+        }
+        
+        // Ensure wake lock is released
+        try {
+            wakeLock?.let {
+                if (it.isHeld) {
+                    it.release()
+                }
+            }
+            wakeLock = null
+        } catch (e: Exception) {
+            android.util.Log.w("LocationService", "Error releasing wake lock in onDestroy: ${e.message}")
+        }
     }
 
     /**
